@@ -25,7 +25,16 @@ RUN pip install ptitprince
 #TODO
 RUN pip install pickle5
 
-WORKDIR /code_rev
+RUN pip install torchmetrics
+RUN pip install mxnet
+RUN pip install pytorch-msssim
+RUN pip install paquo
+RUN pip install shapely
+
+WORKDIR /METHnet_GBM_segmentation
 
 
 COPY . .
+
+
+CMD [ "python", "./src/main.py" ]

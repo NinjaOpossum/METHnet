@@ -1,299 +1,318 @@
-import torch
-
-from torch.utils.data import Dataset, DataLoader, RandomSampler, SequentialSampler
-
-import torch.optim as optim
-from models.attention_model import Attention_MB
-
-from learning.logger import EarlyStopping, Accuracy_Logger
+# imports
+import glob
+import sys
 import os
+from sklearn.metrics import confusion_matrix
+import random
+import math
+import time
+import scipy.ndimage
 import numpy as np
+from albumentations.pytorch import ToTensorV2
+from albumentations import *
+import cv2
+import matplotlib.pyplot as plt
+import PIL
+# from utils import dice_coef_multilabel
+from imgDataset import GBMIMGDataset
+from unet import UNet  # code borrowed from https://github.com/jvanvugt/pytorch-unet
+from torch.utils.data.sampler import RandomSampler
+from torch.utils.data import DataLoader, Dataset
+from torch import nn
+import torch
+import pickle
+import torch.backends.cudnn as cudnn
 
-class MIL_Dataset(Dataset):
-    """ Dataset for DataLoader
+from tensorboardX import SummaryWriter
 
-    Attributes
-    ----------
-    X : list [Patient]
-        List of patient used to train network
+# params
+dataname = "GBM"
+ignore_index = (
+    -100
+)  # Unet has the possibility of masking out pixels in the output image, we can specify the index value here (though not used)
+gpuid = 0
 
-    Methods
-    -------
-    __len__()
-        Number of patients
-    __getitem__(idx)
-        Get features, labels, keys and identifier for current patient
-    """
-    def __init__(self, X):
-        """
-        Parameters
-        ----------
-        X : list [Patient]
-            List of patients used to train network
-        """
-        self.X = X
+# --- unet params
+# these parameters get fed directly into the UNET class, and more description of them can be discovered there
+n_classes = 2  # number of classes in the data mask that we'll aim to predict
+in_channels = 3  # input channel of the data, RGB = 3
+padding = True  # should levels be padded
+depth = 5  # depth of the network
+wf = 2  # wf (int): number of filters in the first layer is 2**wf, was 6
+# should we simply upsample the mask, or should we try and learn an interpolation
+up_mode = "upsample"
+batch_norm = True  # should we use batch normalization between the layers
 
-    def __len__(self):
-        """ Get number of batches to process
+# --- training params
+batch_size = 2
+patch_size = 256
+num_epochs = 100
+edge_weight = 1.1  # edges tend to be the most poorly segmented given how little area they occupy in the training set, this paramter boosts their values along the lines of the original UNET paper
+phases = ["train", "val"]
+validation_phases = [
+    "val"
+]  # when should we do valiation? note that validation is time consuming, so as opposed to doing for both training and validation, we do it only for vlaidation at the end of the epoch
 
-        Returns 
-        -------
-        int
-            Number of patients/batches to process
-        """
-        return len(self.X)
+# data config
+train_perc = 0.7
+val_perc = 0.2
 
-    def __getitem__(self, idx):
-        """ Get features, label, keys and identifier for current patient
-
-        Parameters
-        ----------
-        idx : int
-            Index of patient in list X
-        
-        Returns
-        -------
-        TorchTensor
-            Encoded features for this patient
-        int
-            class label of patient
-        list [(int, int)] 
-            keys recognizing Tiles same order as features
-        string
-            patient identifier
-        """
-        # One idx refers to one patients
-        patient = self.X[idx]
-        features, keys = patient.get_features()
-        features = features.astype(np.float32)
-        features = torch.from_numpy(features)
-        
-        label = patient.get_diagnosis().get_label()
-        identifier = patient.get_identifier()
-
-        return features, label, keys, identifier
+# helper function for pretty printing of current time and remaining time
 
 
-def collate_MIL(batch):
-    """ Cast batch to Tensors
-    Parameters
-    ----------
-    batch : list [(TorchTensor, int, list[(int, int)], string)]
-        Patients in batch
-    Returns
-    -------
-    list 
-        List of Tensors to use for training containing the patient information
-    """
-    # Concatenate images
-    img = torch.cat([item[0] for item in batch], dim=0)
-    # Concatenate labels
-    label = torch.LongTensor([item[1] for item in batch])
-    # Concatenate keys
-    keys = torch.LongTensor([item[2] for item in batch])
-    # Concatenate identifiers
-    identifier = [[item[3] for item in batch]]
-
-    return [img, label, keys, identifier]
-
-def calculate_error(Y_hat, Y):
-    """ Calculate error of classification
-    Parameters
-    ----------
-    Y_hat : Tensor
-        Predicted class
-    Y : Tensor
-        True class
-    """
-    error = 1. -Y_hat.float().eq(Y.float()).float().mean().item()
-
-    return error
+def asMinutes(s):
+    m = math.floor(s / 60)
+    s -= m * 60
+    return "%dm %ds" % (m, s)
 
 
-def train(train_patients, validation_patients, fold, setting):
-    """ Train an Attention model and save the best performing one
-
-    Parameters
-    ----------
-    train_patients : list [[Patient]]
-        List of list per class of patients to train the model on
-    validation_patients : list [[Patient]]
-        List of list per class of patients to validate the model on
-    fold : int
-        Current fold used or iteration of Monte-Carlo cross validation
-    setting : Setting
-        Setting as defined by class
-    """
-    # Loss function
-    loss_fn = torch.nn.CrossEntropyLoss()
-    # Number of classes
-    n_classes = setting.get_class_setting().get_n_classes()
-    # Create Attention model
-    model = Attention_MB(setting)
-    model.relocate()
-    # Optimizer
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=1e-4, weight_decay=1e-5)
-    # Early stopping checker
-    early_stopping = EarlyStopping(patience=setting.get_network_setting().get_patience(), stop_epoch=setting.get_network_setting().get_stop_epoch(), verbose=setting.get_network_setting().get_verbose())
-    # Folder to save model parameters to
-    model_folder = setting.get_network_setting().get_model_folder()
-    # File to save model parameters to
-    model_file = 's_{}_checkpoint.pt'.format(fold)
-    if os.path.exists(model_folder + model_file):
-        return
-    # Iterate epochs
-    for epoch in range(setting.get_network_setting().get_epochs()):
-        # Get minimum number of patients for one class in train set
-        min_n = min([len(train_patients[i]) for i in range(len(train_patients))])
-
-        patients_train = []
-        # Iterate over classes
-        for patients in train_patients:
-            # Append minimum number of patients for this class to current epoch dataset
-            indices = np.arange(0, len(patients))
-            np.random.shuffle(indices)
-
-            for i in range(min_n):
-                patients_train.append(patients[indices[i]])
-
-        # Get minimum number of patients for one class in validation set
-        min_n = min([len(validation_patients[i]) for i in range(len(validation_patients))])
-
-        patients_validation = []
-        # Iterate over classes
-        for patients in validation_patients:
-            # Append minimum number of patients for this class to current epoch dataset
-            indices = np.arange(0, len(patients))
-            np.random.shuffle(indices)
-
-            for i in range(min_n):
-                patients_validation.append(patients[indices[i]])
-        # Create datasets and Loaders
-        train_dataset = MIL_Dataset(patients_train)
-        train_loader = DataLoader(train_dataset, batch_size=1, sampler=RandomSampler(train_dataset), collate_fn=collate_MIL)
-
-        validation_dataset = MIL_Dataset(patients_validation)
-        validation_loader = DataLoader(validation_dataset, batch_size=1, sampler=SequentialSampler(validation_dataset), collate_fn=collate_MIL)
-        # Train one epoch
-        train_epoch(epoch, model, n_classes, train_loader, loss_fn, optimizer)
-        # Validate the model
-        stop = validate_epoch(epoch, model, n_classes, validation_loader, loss_fn, early_stopping, ckpt_name=model_folder+model_file)
-        # Apply Early stopping
-        if stop and setting.get_network_setting().get_early_stopping():
-            break
+def timeSince(since, percent):
+    now = time.time()
+    s = now - since
+    es = s / (percent + 0.00001)
+    rs = es - s
+    return "%s (- %s)" % (asMinutes(s), asMinutes(rs))
 
 
+# specify if we should use a GPU (cuda) or only the CPU
+if torch.cuda.is_available():e
+    print(torch.cuda.get_device_properties(gpuid))
+    torch.cuda.set_device(gpuid)
+    device = torch.device(f"cuda:{gpuid}")
+    print("training runs on gpu")
+else:
+    print("training runs on cpu")
+    device = torch.device(f"cpu")
 
-def train_epoch(epoch, model, n_classes, loader, loss_fn, optimizer):
-    """ One epoch of model training
+torch.cuda.empty_cache()
 
-    Parameters
-    ----------
-    epoch : int
-        Current epoch
-    model : AttentionMB
-        Model to train
-    n_classes : int
-        Number of classes in classification problem
-    loader : DataLoader
-        DataLoader holding the train data
-    loss_fn : torch.nn.CrossEntropyLoss
-        Loss function
-    optimizer : Adam
-        Optimizer to train model with
-    """
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.train()
+# build the model according to the paramters specified above and copy it to the GPU. finally print out the number of trainable parameters
+model = UNet(
+    n_classes=n_classes,
+    in_channels=in_channels,
+    padding=padding,
+    depth=depth,
+    wf=wf,
+    up_mode=up_mode,
+    batch_norm=batch_norm,
+).to(device)
+print(
+    f"total params: \t{sum([np.prod(p.size()) for p in model.parameters()])}")
 
-    acc_logger = Accuracy_Logger(n_classes=n_classes)
+# transforms for the data
+transforms = Compose([
+    VerticalFlip(p=.5),
+    HorizontalFlip(p=.5),
+    ToTensorV2()
+])
 
-    train_loss = 0.
-    train_error = 0.
-    # Iterate batches
-    for batch_idx, (data, label, keys, identifier) in enumerate(loader):
-        
-        data, label = data.to(device), label.to(device)
-        # Forward pass
-        logits, Y_prob, Y_hat, A = model(data, label=label)
-        
-        # Compute loss and log performance
-        acc_logger.log(Y_hat, label)
-        loss = loss_fn(logits, label)
-        loss_value = loss.item()
+# Dataset and Dataloader
+# create random list and split data
+imgPath = "/workspaces/GBM_segmentation/GBM_segmentation/imagedata/mitose"
+file_names = [
+    filename for filename in os.listdir(imgPath)
+    if os.path.isfile(os.path.join(imgPath, filename))
+]
 
-        total_loss = loss
+label_list = [
+    imgPath + "/labels/" + ".".join(filename.split(".")[:-1]) + "-labelled.png"
+    for filename in file_names
+]
 
-        train_loss += loss_value
+img_list = [os.path.join(imgPath, file) for file in file_names]
 
-        error = calculate_error(Y_hat, label)
-        train_error += error
-        # Backward pass
-        total_loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
+pairs = list(zip(img_list, label_list))
+random.shuffle(pairs)
+
+split_index_train = int(len(pairs) * train_perc)
+split_index_val = int(split_index_train + len(pairs) * val_perc)
+
+# create Dataset and Dataloader
+dataset = {}
+dataLoader = {}
+dataset['train'] = GBMIMGDataset(
+    img_list=[pair[0] for pair in pairs[:split_index_train]],
+    label_list=[pair[1] for pair in pairs[:split_index_train]],
+    transforms=transforms
+)
+dataset['val'] = GBMIMGDataset(
+    img_list=[pair[0] for pair in pairs[split_index_train: split_index_val]],
+    label_list=[pair[1] for pair in pairs[split_index_train: split_index_val]],
+    transforms=transforms
+)
+dataset['test'] = GBMIMGDataset(
+    img_list=[pair[0] for pair in pairs[split_index_val:]],
+    label_list=[pair[1] for pair in pairs[split_index_val:]]
+)
+
+testDataset = dataset['test']
+# Pfad zum aktuellen Arbeitsverzeichnis
+current_dir = os.getcwd()
+
+# Pfad zur Zieldatei relativ zum aktuellen Arbeitsverzeichnis
+relative_path = 'src/pklDatasets/'
+
+# Vollständiger Pfad zur Zieldatei
+file_path = os.path.join(current_dir, relative_path)
+
+# Ordner erstellen, falls er nicht existiert
+os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+# save dataset Test in pickle file
+with open('test_dataset.pkl', 'wb') as f:
+    pickle.dump(testDataset, f)
 
 
-    train_loss /= len(loader)
-    train_error /= len(loader)
+for phase in phases:
+    dataLoader[phase] = DataLoader(
+        dataset[phase],
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=0,
+        pin_memory=True,
+    )
+    print(f"Länge des {phase} Datasets: ", len(dataset[phase]))
 
-    print('Epoch: {}, train_loss: {:.4f}, train_error: {:.4f}'.format(epoch, train_loss, train_error))
+
+# adam is going to be the most robust, though perhaps not the best performing, typically a good place to start
+optim = torch.optim.Adam(model.parameters())
+# optim = torch.optim.SGD(model.parameters(),
+#                           lr=.1,
+#                           momentum=0.9,
+#                           weight_decay=0.0005)
+
+# +
+# we have the ability to weight individual classes, in this case we'll do so based on their presense in the trainingset
+# to avoid biasing any particular class
+
+# nclasses = dataset["train"].numpixels.shape[1]
+# class_weight=dataset["train"].numpixels[1,0:2] #don't take ignored class into account here
+# class_weight = torch.from_numpy(1-class_weight/class_weight.sum()).type('torch.FloatTensor').to(device)
+class_weight = None
+
+# show final used weights, make sure that they're reasonable before continouing
+# print("class_weight:", class_weight)
+# reduce = False makes sure we get a 2D output instead of a 1D "summary" value
+criterion = nn.CrossEntropyLoss(
+    weight=class_weight, ignore_index=ignore_index, reduce=None)
 
 
-def validate_epoch(epoch, model, n_classes, loader, loss_fn, early_stopping, ckpt_name):
-    """ Validate model and save if new best score is achieved
-    Parameters
-    ----------
-    epoch : int
-        Current epoch
-    model : AttentionMB
-        Model to validate
-    n_classes : int
-        Number of classes in classification problem
-    loader : DataLoader
-        DataLoader holding validation data
-    loss_fn : torch.nn.CrossEntropyLoss
-        Loss function
-    early_stopping : EarlyStopping
-        EarlyStopping as defined by class
-    ckpt_name : string
-        File to save model parameters to
+# model training
+writer = SummaryWriter()  # open the tensorboard visualiser
+best_loss_on_test = np.Infinity
+edge_weight = torch.as_tensor(edge_weight, dtype=torch.float32).to(device)
+cmatrix = {key: np.zeros((2, 2)) for key in phases}
+start_time = time.time()
 
-    Returns
-    -------
-    bool
-        True if early stopping should be applied
-    """
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model.eval()
+if not os.path.exists("models"):
+    os.makedirs("models")
 
-    acc_logger = Accuracy_Logger(n_classes=n_classes)
 
-    val_loss = 0.
-    val_error = 0.
-    # Just forward pass needed
-    with torch.no_grad():
-        for batch_idx, (data, label, keys, identifier) in enumerate(loader):
-            
-            data, label = data.to(device), label.to(device)
-            # Forward pass
-            logits, Y_prob, Y_hat, A = model(data, label=label)
+def dice_coef(y_true, y_pred, smooth=1e-6):
+    y_true_f = y_true.contiguous().view(-1)
+    y_pred_f = y_pred.contiguous().view(-1)
+    intersection = (y_true_f * y_pred_f).sum()
+    return (2. * intersection + smooth) / (y_true_f.sum() + y_pred_f.sum() + smooth)
 
-            acc_logger.log(Y_hat, label)
 
-            loss = loss_fn(logits, label)
+for epoch in range(num_epochs):
+    # zero out epoch based performance variables
+    all_loss = {key: torch.zeros(0).to(device) for key in phases}
+    all_acc = {key: 0.0 for key in phases}
+    # To count the number of batches in each phase
+    batch_count = {key: 0 for key in phases}
 
-            val_loss += loss.item()
+    for phase in phases:  # iterate through both training and validation states
+        if phase == 'train':
+            model.train()  # Set model to training mode
+        else:  # when in eval mode, we don't want parameters to be updated
+            model.eval()   # Set model to evaluate mode
 
-            error = calculate_error(Y_hat, label)
+        all_loss[phase] = torch.zeros(0).to(device)
 
-            val_error += error
+        # for each of the batches
+        for ii, (X, y) in enumerate(dataLoader[phase]):
+            X = X.to(device)  # [Nbatch, 3, H, W]
+            # [Nbatch, H, W] with class indices (0, 1)
+            y = y.type('torch.LongTensor').to(device)
 
-    val_error /= len(loader)
-    val_loss /= len(loader)
-    # Compute Early stopping
-    early_stopping(epoch, val_loss, model, ckpt_name=ckpt_name)
+            assert y.min() >= 0 and y.max() < 2
 
-    if early_stopping.early_stop:
-        return True
+            # dynamically set gradient computation, in case of validation, this isn't needed
+            with torch.set_grad_enabled(phase == 'train'):
+                # disabling is good practice and improves inference time
+                X = X.float()
+                prediction = model(X)  # [N, Nclass, H, W]
 
-    return False
+                try:
+                    loss_matrix = criterion(prediction, y)
+                    # can skip if edge weight==1
+                    loss = (loss_matrix * (edge_weight)).mean()
+                except:
+                    continue
+
+                if phase == "train":
+                    optim.zero_grad()
+                    loss.backward()
+                    optim.step()
+                    train_loss = loss
+
+                all_loss[phase] = torch.cat(
+                    (all_loss[phase], loss.detach().view(1, -1)))
+
+                if phase in validation_phases:  # if this phase is part of validation, compute confusion matrix
+                    # Get the predictions as class indices (with the highest probability)
+                    _, preds = torch.max(prediction, 1)
+
+                    dice = dice_coef(y, preds)
+                    all_acc[phase] += dice.item()
+                    batch_count[phase] += 1  # Increment the count
+
+        all_loss[phase] = all_loss[phase].cpu().numpy().mean()
+        # Calculate average Dice Accuracy for this phase
+        if batch_count[phase] == 0:
+            # Set accuracy to 0 if no batches in the phase
+            all_acc[phase] = 0.0
+        else:
+            # Calculate average accuracy if batches exist
+            all_acc[phase] /= batch_count[phase]
+
+        # save metrics to tensorboard
+        writer.add_scalar(f'{phase}/loss', all_loss[phase], epoch)
+        if phase in validation_phases:
+            writer.add_scalar(f'{phase}/acc', all_acc[phase], epoch)
+            # writer.add_scalar(f'{phase}/TN', cmatrix[phase][0, 0], epoch)
+            # writer.add_scalar(f'{phase}/TP', cmatrix[phase][1, 1], epoch)
+            # writer.add_scalar(f'{phase}/FP', cmatrix[phase][0, 1], epoch)
+            # writer.add_scalar(f'{phase}/FN', cmatrix[phase][1, 0], epoch)
+            # writer.add_scalar(
+            #     f'{phase}/TNR', cmatrix[phase][0, 0]/(cmatrix[phase][0, 0]+cmatrix[phase][0, 1]), epoch)
+            # writer.add_scalar(
+            #     f'{phase}/TPR', cmatrix[phase][1, 1]/(cmatrix[phase][1, 1]+cmatrix[phase][1, 0]), epoch)
+
+    print('%s ([%d/%d] %d%%), [train loss: %.4f] [val loss: %.4f] [acc val: %.4f]' % (timeSince(start_time, (epoch+1) / num_epochs),
+                                                                                      epoch+1, num_epochs, (epoch+1) / num_epochs * 100, all_loss["train"], all_loss["val"], all_acc["val"]), end="")
+
+    # if current loss is the best we've seen, save model state with all variables
+    # Bestimme den relativen Pfad zum gewünschten Verzeichnis
+    save_path = os.path.join(os.getcwd(), 'models')
+
+    # necessary for recreation
+    if all_loss["val"] < best_loss_on_test:
+        best_loss_on_test = all_loss["val"]
+        print("  **")
+        state = {'epoch': epoch + 1,
+                 'model_dict': model.state_dict(),
+                 'optim_dict': optim.state_dict(),
+                 'best_loss_on_test': all_loss,
+                 'n_classes': n_classes,
+                 'in_channels': in_channels,
+                 'padding': padding,
+                 'depth': depth,
+                 'wf': wf,
+                 'up_mode': up_mode, 'batch_norm': batch_norm}
+
+        torch.save(state, os.path.join(
+            save_path, f"{dataname}_unet_best_model.pth"))
+    else:
+        print("")
