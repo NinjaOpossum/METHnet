@@ -7,8 +7,8 @@ import os
 
 from learning.construct_features import construct_features
 from progress.bar import IncrementalBar
-import learning.train
-import learning.test
+# import learning.train
+# import learning.test
 import getopt, sys
 
 def run(data, setting, train=False, features_only=False, runs_start=0, runs=10, draw_map=False):
@@ -38,9 +38,9 @@ def run(data, setting, train=False, features_only=False, runs_start=0, runs=10, 
     print(np.shape(data.train_set))
     print("_-----")
     # Create features
-    construct_features(data.get_train_set(), setting)
-    construct_features(data.get_validation_set(), setting)
-    construct_features(data.get_test_set(), setting)
+    # construct_features(data.get_train_set(), setting)
+    # construct_features(data.get_validation_set(), setting)
+    # construct_features(data.get_test_set(), setting)
 
     if features_only:
         return
@@ -55,13 +55,13 @@ def run(data, setting, train=False, features_only=False, runs_start=0, runs=10, 
         # Set split
         data.set_fold(k)
         # Train model
-        if train:
-            learning.train.train(data.get_train_set(), data.get_validation_set(), k, setting)
+        if train: pass
+            # learning.train.train(data.get_train_set(), data.get_validation_set(), k, setting)
         # Test model
-        balanced_accuracy, sensitivity, specificity = learning.test.test(data.get_test_set(), k, setting, draw_map=draw_map)
-        balanced_accuracies.append(balanced_accuracy)
-        sensitivities.append(sensitivity)
-        specificities.append(specificity)
+        # balanced_accuracy, sensitivity, specificity = learning.test.test(data.get_test_set(), k, setting, draw_map=draw_map)
+        # balanced_accuracies.append(balanced_accuracy)
+        # sensitivities.append(sensitivity)
+        # specificities.append(specificity)
         bar.next()
 
     bar.finish()

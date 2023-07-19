@@ -1,0 +1,24 @@
+{
+  "version": "0.3.2",
+  "createTimestamp": 1655711137638,
+  "modifyTimestamp": 1655711137638,
+  "uri": "file:/home/tkauer/programs/github/GBM_QuPath_tiles/test/test_projects/qp_project/project.qpproj",
+  "lastID": 1,
+  "images": [
+    {
+      "serverBuilder": {
+        "builderType": "uri",
+        "providerClassName": "qupath.lib.images.servers.bioformats.BioFormatsServerBuilder",
+        "uri": "file:/home/tkauer/programs/github/GBM_QuPath_tiles/test/test_projects/slides/white-4096.tif",
+        "args": [
+          "--series",
+          "0"
+        ]
+      },
+      "entryID": 1,
+      "randomizedName": "d90d9b12-d76c-4cc3-9b48-8213e7b4ce2b",
+      "imageName": "white-4096.tif",
+      "metadata": {}
+    }
+  ]
+}

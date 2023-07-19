@@ -28,14 +28,14 @@ import time
 import skimage.io as skio
 from sklearn.metrics import confusion_matrix
 
-from imgDataset import GBMIMGDataset
+# from imgDataset import GBMIMGDataset
 import pickle
 import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
-from unet import UNet
+from models.unet import UNet
 from utils import dice_coef_multilabel, dice_coef_per_label 
 
 import PIL

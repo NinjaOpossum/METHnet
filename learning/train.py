@@ -14,8 +14,8 @@ import cv2
 import matplotlib.pyplot as plt
 import PIL
 # from utils import dice_coef_multilabel
-from imgDataset import GBMIMGDataset
-from unet import UNet  # code borrowed from https://github.com/jvanvugt/pytorch-unet
+# from imgDataset import GBMIMGDataset
+from models.unet import UNet  # code borrowed from https://github.com/jvanvugt/pytorch-unet
 from torch.utils.data.sampler import RandomSampler
 from torch.utils.data import DataLoader, Dataset
 from torch import nn
@@ -23,7 +23,7 @@ import torch
 import pickle
 import torch.backends.cudnn as cudnn
 
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 
 # params
 dataname = "GBM"
@@ -75,7 +75,7 @@ def timeSince(since, percent):
 
 
 # specify if we should use a GPU (cuda) or only the CPU
-if torch.cuda.is_available():e
+if torch.cuda.is_available():
     print(torch.cuda.get_device_properties(gpuid))
     torch.cuda.set_device(gpuid)
     device = torch.device(f"cuda:{gpuid}")
@@ -108,7 +108,7 @@ transforms = Compose([
 
 # Dataset and Dataloader
 # create random list and split data
-imgPath = "/workspaces/GBM_segmentation/GBM_segmentation/imagedata/mitose"
+imgPath = ""
 file_names = [
     filename for filename in os.listdir(imgPath)
     if os.path.isfile(os.path.join(imgPath, filename))

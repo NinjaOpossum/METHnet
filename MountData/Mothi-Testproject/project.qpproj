@@ -1,0 +1,45 @@
+{
+  "version": "0.3.0",
+  "createTimestamp": 1689769091942,
+  "modifyTimestamp": 1689769091942,
+  "uri": "file:/media/przybilla/Elements/METHNet/Mothi-Testproject/project.qpproj",
+  "lastID": 3,
+  "images": [
+    {
+      "serverBuilder": {
+        "builderType": "uri",
+        "providerClassName": "qupath.lib.images.servers.openslide.OpenslideServerBuilder",
+        "uri": "file:/media/przybilla/Elements/METHNet/Dataset%20D/B18-19-GI-II-b-0-0_HE_Hamamatsu_40x.ndpi",
+        "args": []
+      },
+      "entryID": 1,
+      "randomizedName": "df408946-9246-433c-a093-07428d275e77",
+      "imageName": "B18-19-GI-II-b-0-0_HE_Hamamatsu_40x.ndpi",
+      "metadata": {}
+    },
+    {
+      "serverBuilder": {
+        "builderType": "uri",
+        "providerClassName": "qupath.lib.images.servers.openslide.OpenslideServerBuilder",
+        "uri": "file:/media/przybilla/Elements/METHNet/Dataset%20D/B30-20-GI-NN-d-0-0_HE_Hamamatsu_40x.ndpi",
+        "args": []
+      },
+      "entryID": 2,
+      "randomizedName": "355ff4e3-10c5-496d-a77d-160de52d6ddc",
+      "imageName": "B30-20-GI-NN-d-0-0_HE_Hamamatsu_40x.ndpi",
+      "metadata": {}
+    },
+    {
+      "serverBuilder": {
+        "builderType": "uri",
+        "providerClassName": "qupath.lib.images.servers.openslide.OpenslideServerBuilder",
+        "uri": "file:/media/przybilla/Elements/METHNet/Dataset%20D/B49-20-GI-NN-b-0-0_HE_Hamamatsu_40x.ndpi",
+        "args": []
+      },
+      "entryID": 3,
+      "randomizedName": "25c98f09-9092-475d-aa8e-d9732d4db427",
+      "imageName": "B49-20-GI-NN-b-0-0_HE_Hamamatsu_40x.ndpi",
+      "metadata": {}
+    }
+  ]
+}
