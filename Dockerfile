@@ -10,6 +10,9 @@ RUN apt-get -y install python3-openslide
 RUN apt-get -y install libgl1-mesa-glx
 RUN apt-get -y install git
 RUN apt-get -y install build-essential
+RUN apt-get -y install libxtst6
+RUN apt-get -y install libxi6
+
 
 # install mothi -tka
 RUN pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple mothi

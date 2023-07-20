@@ -6,11 +6,12 @@ import numpy as np
 import cv2
 from progress.bar import Bar
 
-from  saved_tile_dataset import SavedTilesDataset
+from saved_tile_dataset import SavedTilesDataset
 from mothi.tiling_projects import QuPathTilingProject
+from paquo.projects import QuPathProject
 
 # config
-QUPATH_DIR = os.path.join('..', 'test', 'test_projects', 'qp_project')
+QUPATH_DIR = os.path.join("/workspaces", "METHnet_GBM_segmentation", "MountData", "Mothi-Testproject")
 DATA_DIR = 'data'
 SAVE_DIR = os.path.join(DATA_DIR, 'export')
 # QUPATH_IMAGE_DIR = '/workspaces/GBM_QuPath_tiles/test/test_projects/slides'
@@ -18,12 +19,17 @@ EXPORT_IMG_IDS = [0] # numpy indexing
 
 TILE_SIZE = (250, 250) # (width, height)
 
+# Load the QuPath project
+qp_project_test = QuPathProject(QUPATH_DIR, mode='r+')
+# Update image paths
+qp_project_test.update_image_paths(try_relative=True)
+
 
 # extract tiles
 qp_project = QuPathTilingProject(QUPATH_DIR)
 img_meta = np.array(qp_project.images)[EXPORT_IMG_IDS]
 if not os.path.exists(SAVE_DIR):
-    os.mkdir(SAVE_DIR)
+    os.makedirs(SAVE_DIR, exist_ok=True)
 
 for qupath_img in img_meta:
     img_id = int(qupath_img.entry_id) - 1

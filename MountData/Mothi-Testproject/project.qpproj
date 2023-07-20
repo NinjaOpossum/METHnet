@@ -10,7 +10,97 @@
         "builderType": "uri",
         "providerClassName": "qupath.lib.images.servers.openslide.OpenslideServerBuilder",
         "uri": "file:/media/przybilla/Elements/METHNet/Dataset%20D/B18-19-GI-II-b-0-0_HE_Hamamatsu_40x.ndpi",
-        "args": []
+        "args": [],
+        "metadata": {
+          "name": "B18-19-GI-II-b-0-0_HE_Hamamatsu_40x.ndpi",
+          "width": 103680,
+          "height": 105984,
+          "sizeZ": 1,
+          "sizeT": 1,
+          "channelType": "DEFAULT",
+          "isRGB": true,
+          "pixelType": "UINT8",
+          "levels": [
+            {
+              "downsample": 1.0,
+              "width": 103680,
+              "height": 105984
+            },
+            {
+              "downsample": 2.0,
+              "width": 51840,
+              "height": 52992
+            },
+            {
+              "downsample": 4.0,
+              "width": 25920,
+              "height": 26496
+            },
+            {
+              "downsample": 8.0,
+              "width": 12960,
+              "height": 13248
+            },
+            {
+              "downsample": 16.0,
+              "width": 6480,
+              "height": 6624
+            },
+            {
+              "downsample": 32.0,
+              "width": 3240,
+              "height": 3312
+            },
+            {
+              "downsample": 64.0,
+              "width": 1620,
+              "height": 1656
+            },
+            {
+              "downsample": 128.0,
+              "width": 810,
+              "height": 828
+            },
+            {
+              "downsample": 256.0,
+              "width": 405,
+              "height": 414
+            }
+          ],
+          "channels": [
+            {
+              "name": "Red",
+              "color": -65536
+            },
+            {
+              "name": "Green",
+              "color": -16711936
+            },
+            {
+              "name": "Blue",
+              "color": -16776961
+            }
+          ],
+          "pixelCalibration": {
+            "pixelWidth": {
+              "value": 0.2302131774022745,
+              "unit": "µm"
+            },
+            "pixelHeight": {
+              "value": 0.23025558369790466,
+              "unit": "µm"
+            },
+            "zSpacing": {
+              "value": 1.0,
+              "unit": "z-slice"
+            },
+            "timeUnit": "SECONDS",
+            "timepoints": []
+          },
+          "magnification": 40.0,
+          "preferredTileWidth": 3840,
+          "preferredTileHeight": 8
+        }
       },
       "entryID": 1,
       "randomizedName": "df408946-9246-433c-a093-07428d275e77",
