@@ -15,7 +15,12 @@ from functools import partial
 from datastructure.tile import Tile as Tile
 
 from progress.bar import IncrementalBar
-import pickle5 as pickle
+
+# @MPR
+# import if Linux
+# import pickle5 as pickle
+# import if Windows
+import pickle
 
 from scipy.stats import rankdata
 
@@ -250,6 +255,10 @@ class WholeSlideImage(object):
         # WSI Image Object
         self.image = None
 
+        # @MPR
+        # QuPath QuPathTilingProject
+        self.qupath_project = self.setting.get_data_setting().get_qupath_project()
+
         # JSON Tiling Folder and File Name
         self.json_folder = self.setting.get_data_setting().get_json_tiling_folder()
 
@@ -417,7 +426,9 @@ class WholeSlideImage(object):
             bar.finish()
 
             # Create Pool for multiprocessing of filtering
-            pool = multiprocessing.Pool()
+            # @MPR
+            # pool = multiprocessing.Pool()
+            
             # Create multiprocessing filtering function, otsu value according to overview
             partial_f = partial(multiprocess_filtering, otsu_value=self.otsu_value,
                 filter_background=self.setting.get_data_setting().get_filter_background(),
@@ -426,8 +437,11 @@ class WholeSlideImage(object):
                 tile_property=tile_property,
                 level = self.used_level
             )
-            # Execute multiprocessing
-            resulting_tiles = pool.map(partial_f, images)
+
+            # @MPR
+            # Execute multiprocessing, using list cause better for the tree then work with MOTHI
+            # resulting_tiles = pool.map(partial_f, images)
+            resulting_tiles = list(map(partial_f, images)) 
             # Save positions of Tiles for JSON
             indices = []
 
@@ -606,6 +620,10 @@ class WholeSlideImage(object):
             The overview image of the WSI
         """
         return self.overview_image
+
+    # @MPR
+    def get_qupath_project(self):
+        return self.qupath_project
 
     def set_tiles(self, tiles):
         """ Set list of tiles
