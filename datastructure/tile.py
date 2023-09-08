@@ -26,6 +26,12 @@ class Tile(object):
     -------
     get_image(wsi, augment=True)
         Returns the image data belonging to the Tile
+    # @MPR
+    get_image_qupath(wsi)
+        Returns the image from the qupath project
+    # @MPR
+    get_annotation(self, wsi):
+        Returns the annotations as binary masks as C X W X H
     get_position()
         Getter position attribute
     get_size()
@@ -100,6 +106,72 @@ class Tile(object):
         if augment:
             img = self.augmentation(image=img)['image']
         return img
+
+    # @MPR
+    def get_image_qupath(self, wsi):
+        """ returns the image from the qupath project
+        Args:
+            wsi datastructure.wsi.WholeSlideImage: Wsi object from the patient
+
+        Returns:
+            img numpy array: tile img
+        """
+        qupath_project = wsi.get_qupath_project()
+
+        if not qupath_project:
+            return None
+
+        img = None
+        file_name = wsi.get_file_name()
+        for image_id_current, image in enumerate(qupath_project.images):
+            if image.image_name == file_name:
+                image_id = image_id_current
+                try:
+                    img = qupath_project.get_tile(img_id = image_id, 
+                        location = self.position, 
+                        size = self.size,
+                        downsample_level  = self.level)
+                except:
+                    print(file_name + " doesn't have an image in the QuPath project!")
+                    return None
+                break
+        if img is None:
+            print(file_name + " doesn't exists in the QuPath project")
+        return img
+
+    # @MPR
+    def get_annotation(self, wsi):
+        """ returns the annotations as binary masks as C X W X H
+
+        Args:
+            wsi datastructure.wsi.WholeSlideImage: Wsi object from the patient
+
+        Returns:
+            annotation numpy array: binary masks in different channes, shape: C X W X H
+        """
+        qupath_project = wsi.get_qupath_project()
+
+        if not qupath_project:
+            return None
+
+        annotation = None
+        file_name = wsi.get_file_name()
+        for image_id_current, image in enumerate(qupath_project.images):
+            if image.image_name == file_name:
+                image_id = image_id_current
+                try:
+                    annotation = qupath_project.get_tile_annot_mask(img_id = image_id, 
+                        location = self.position, 
+                        size = self.size, 
+                        downsample_level  = self.level,
+                        multichannel = True)
+                except:
+                    print(file_name + " doesn't have an annotation in the QuPath project!")
+                    return None
+                break
+        if annotation is None:
+            print(file_name + " doesn't exists in the QuPath project")
+        return annotation
 
     def get_position(self):
         """ Getter position attribute
