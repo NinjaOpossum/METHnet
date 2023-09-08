@@ -117,6 +117,9 @@ class Dataset(object):
         for _, row in df.iterrows():
             # Identifier
             identifier = row['Histological ID']
+            # MPR
+            if not identifier.startswith("B"):
+                continue
             # Get class attribute to use
             class_attribute = row[self.setting.get_class_setting().get_class_attribute()]
 
