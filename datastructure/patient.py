@@ -103,6 +103,23 @@ class Patient(object):
                 for wsi_identifier in wsi_identifiers:
                     # Create WSI object
                     wsi = WholeSlideImage(self.setting, wsi_identifier, image_property, data_folder)
+                    # @MPR
+                    # Removes the non-annotated wsis if the flag has been set
+                    if self.setting.get_data_setting().get_exclude_non_annotated_wsis():
+                        qupath_project = wsi.get_qupath_project()
+                        assert(qupath_project, "Please provide a QuPath project or disable the exclude_non_annotated_wsis flag from the data_setting.py!")
+
+                        is_annotated = False
+
+                        file_name = wsi.get_file_name()
+                        for image in qupath_project.images:
+                            if image.image_name == file_name:
+                                is_annotated = True
+                                break
+
+                        if not is_annotated:
+                            continue
+                        
                     # If using only such from a stamp check
                     if self.setting.get_data_setting().get_use_only_stamp():
                         # Get stamp locations
