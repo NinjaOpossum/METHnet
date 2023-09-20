@@ -164,7 +164,9 @@ class Tile(object):
                         location = self.position, 
                         size = self.size, 
                         downsample_level  = self.level,
-                        multichannel = True)
+                        # @MPR
+                        multichannel = True,
+                        class_filter = ["Tumor"])
                 except:
                     print(file_name + " doesn't have an annotation in the QuPath project!")
                     return None

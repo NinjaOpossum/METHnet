@@ -408,19 +408,31 @@ class WholeSlideImage(object):
                 if filter.check_tissue(self.overview_threshold,(sx, sy), tile_property.get_tile_size(), self.downsampling_factor, self.factor, self.setting.get_data_setting().get_min_tissue_percentage())]
             
             # Progress bar
-            bar = IncrementalBar('Loading Tiles:', max=len(positions))
-            images = []
+            # @MPR
+            bar = IncrementalBar(f'{self.identifier} Loading Tiles:', max=len(positions))
+
+            resulting_tiles = []
             # Load image tiles
             for position in positions:
                 # Image loading only necessary if want to filter each tile individually again
                 if self.setting.get_data_setting().get_filter_background():
                     # Read image tile at position
                     image = reader.read_region(self.image, corner=position, size=tile_property.get_tile_size(), level_downsamples=self.used_level)
+                    tile = multiprocess_filtering(
+                        (image, position),
+                        self.otsu_value,
+                        self.setting.get_data_setting().get_filter_background(),
+                        self.setting.get_data_setting().get_filter_blood(),
+                        self.setting.get_data_setting().get_min_tissue_percentage(),
+                        tile_property,
+                        self.used_level
+                    )
+                    resulting_tiles.append(tile)
                 else:
                     # Else no image needed, this speeds up
                     image = None
                 # Append image and its position
-                images.append((image, position))
+                # images.append((image, position))
                 bar.next()
 
             bar.finish()
@@ -430,6 +442,7 @@ class WholeSlideImage(object):
             # pool = multiprocessing.Pool()
             
             # Create multiprocessing filtering function, otsu value according to overview
+            """
             partial_f = partial(multiprocess_filtering, otsu_value=self.otsu_value,
                 filter_background=self.setting.get_data_setting().get_filter_background(),
                 filter_blood=self.setting.get_data_setting().get_filter_blood(),
@@ -437,11 +450,10 @@ class WholeSlideImage(object):
                 tile_property=tile_property,
                 level = self.used_level
             )
-
-            # @MPR
-            # Execute multiprocessing, using list cause better for the tree then work with MOTHI
+            """
+            # Execute multiprocessing
             # resulting_tiles = pool.map(partial_f, images)
-            resulting_tiles = list(map(partial_f, images)) 
+            # resulting_tiles = list(map(partial_f, images))
             # Save positions of Tiles for JSON
             indices = []
 

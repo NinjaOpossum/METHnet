@@ -1,6 +1,8 @@
 from tkinter import Image
 import utils.helper as helper
 from albumentations import (RandomCrop, Normalize, Compose)
+# @MPR
+from mothi.tiling_projects import QuPathTilingProject
 
 class ImageProperty(object):
     """ Class to store parameters of one WholeSlideImage type to use
@@ -301,7 +303,8 @@ class DataSetting(object):
     get_attention_statistics_folder()
         Return attention_statistics_folder
     """
-    def __init__(self, data_directories, csv_file, working_directory):
+    # @MPR
+    def __init__(self, data_directories, csv_file, working_directory, qupath_project_file = None):
         """ 
         Parameters
         ----------
@@ -312,15 +315,32 @@ class DataSetting(object):
         working_directory : string
             working directory for data
         """
+# @MPR
+        self.patch_size = 256
         
         # Identifier of patients to manually exclude
         self.excluded_patients = []
+
+# @MPR
+        # Set True If you don't want to load non-annotated WSIs
+
+        self.exclude_non_annotated_wsis = True
 
         # Data folder - Folder where WSI Images are
         self.data_folders = data_directories
 
         # Csv of patients with attributes
         self.csv_patients = csv_file
+
+# @MPR
+        # QuPath Project file which holds images and annotations
+        # Currently only the masks will be used
+        # It can be extended to images easily
+        if qupath_project_file:
+            self.qupath_project = QuPathTilingProject(qupath_project_file, mode = "r+")
+        else:
+            self.qupath_project = None
+
         # JSON Tiling folder
         self.json_tiling_folder = working_directory+'Tiling/Dataset D Full/'
         helper.create_folder(self.json_tiling_folder)
@@ -329,8 +349,8 @@ class DataSetting(object):
         helper.create_folder(self.attention_folder)
 
         # Choose which WSIs to use - detailed explanation in class
-        self.image_properties = [
-            ImageProperty('HE', 'Hamamatsu', 40, 'FFPE', 40),
+        # @MPR
+        self.image_properties = [# ImageProperty('HE', 'Hamamatsu', 40, 'FFPE', 40),
             ImageProperty('HE', 'Hamamatsu', 40, 'FFPE', 20)
         ]
 
@@ -338,7 +358,8 @@ class DataSetting(object):
         self.use_only_stamp = False
         
         # Set True if want to filter for marked area
-        self.filter_non_stamp = True
+        # @MPR
+        self.filter_non_stamp = False
         self.label_map_folder = ''
         if self.filter_non_stamp:
             self.label_map_folder = working_directory+' label_maps/'
@@ -346,8 +367,9 @@ class DataSetting(object):
 
         # Choose which Tiles to generate - detailed explanation in class 
         self.tile_properties = [
-            TileProperty((256, 256), (0, 0), (256, 256), 
-            Compose([RandomCrop(256, 256, always_apply=True, p=1.0),
+            # @MPR
+            TileProperty((self.patch_size, self.patch_size), (0, 0), (self.patch_size, self.patch_size), 
+            Compose([RandomCrop(self.patch_size, self.patch_size, always_apply=True, p=1.0),
             Normalize(always_apply=True, p=1.0)]))
         ]
 
@@ -357,7 +379,10 @@ class DataSetting(object):
         # Set True if want to filter background from single tiles
         self.filter_background = True
         # Set True if want to filter blood from single tiles
-        self.filter_blood = True
+        # @MPR
+        # self.filter_blood = True
+        self.filter_blood = False
+
         # Minimum Percentage of tissue on a single tile
         self.min_tissue_percentage = 0.75
 
@@ -372,8 +397,8 @@ class DataSetting(object):
         self.monte_carlo_folder = working_directory+'splits/b1b2/D/'
         if self.monte_carlo:
             helper.create_folder(self.monte_carlo_folder)
-
-        self.narrow_validation = True
+# @MPR
+        self.narrow_validation = False
         # Feature folder
         self.feature_folder = working_directory+'Features/Dataset D Full/'
         helper.create_folder(self.feature_folder)
@@ -393,6 +418,15 @@ class DataSetting(object):
             excluded_patients
         """
         return self.excluded_patients
+    # @MPR
+    def get_exclude_non_annotated_wsis(self):
+        """ Return a flag to exclude non annotated wsis
+        Returns
+        -------
+        Boolean
+            exclude_non_annotated_wsis
+        """
+        return self.exclude_non_annotated_wsis
 
     def get_data_folders(self):
         """ Return data_folders
@@ -429,6 +463,10 @@ class DataSetting(object):
             csv_patients
         """
         return self.csv_patients
+    
+    # @MPR
+    def get_qupath_project(self):
+        return self.qupath_project
 
     def get_image_properties(self):
         """ Return image_properties

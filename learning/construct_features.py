@@ -1,5 +1,6 @@
 import torch
 
+from models.restnet_custom import resnet50_baseline
 from progress.bar import IncrementalBar
 import os
 import numpy as np

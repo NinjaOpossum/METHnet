@@ -107,14 +107,20 @@ class Patient(object):
                     # Removes the non-annotated wsis if the flag has been set
                     if self.setting.get_data_setting().get_exclude_non_annotated_wsis():
                         qupath_project = wsi.get_qupath_project()
-                        assert(qupath_project, "Please provide a QuPath project or disable the exclude_non_annotated_wsis flag from the data_setting.py!")
+                        assert qupath_project != None, "Please provide a QuPath project or disable the exclude_non_annotated_wsis flag from the data_setting.py!"
 
                         is_annotated = False
 
                         file_name = wsi.get_file_name()
-                        for image in qupath_project.images:
+                        for idx, image in enumerate(qupath_project.images):
                             if image.image_name == file_name:
-                                is_annotated = True
+                                if len(image.hierarchy.annotations) > 0:
+                                    try:
+                                        annotation = qupath_project.get_tile_annot_mask(idx, (0, 0), (1, 1), 0)
+                                    except:
+                                        annotation = None
+                                    if annotation is not None:
+                                        is_annotated = True
                                 break
 
                         if not is_annotated:

@@ -94,13 +94,15 @@ class UNet(nn.Module):
                 blocks.append(x)
 
                 # Down-sample the output of the block to pass it to the next block
-                x = F.avg_pool2d(x, 2)
+                # @MPR
+                x = F.max_pool2d(x, 2)
 
         # Pass the output of the last down-sampling block through the up-sampling path
         for i, up in enumerate(self.up_path):
             x = up(x, blocks[-i-1])
 
         # Pass the output of the last up-sampling block through the final convolution layer
+
         return self.last(x)
 
 
@@ -121,8 +123,10 @@ class UNetConvBlock(nn.Module):
         block = []
 
         # Add the first convolutional layer to the block
+        # @MPR
         block.append(nn.Conv2d(in_size, out_size, kernel_size=3,
-                               padding=int(padding)))
+                               padding=int(padding),
+                               bias = not batch_norm))
 
         # Add a ReLU activation function after the first convolutional layer
         block.append(nn.ReLU())
@@ -132,8 +136,10 @@ class UNetConvBlock(nn.Module):
             block.append(nn.BatchNorm2d(out_size))
 
         # Add the second convolutional layer to the block
+        # @MPR
         block.append(nn.Conv2d(out_size, out_size, kernel_size=3,
-                               padding=int(padding)))
+                               padding=int(padding),
+                               bias = not batch_norm))
 
         # Add a ReLU activation function after the second convolutional layer
         block.append(nn.ReLU())

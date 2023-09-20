@@ -1,6 +1,7 @@
 from arguments.data_setting import DataSetting as DataSetting
 from arguments.class_setting import ClassSetting as ClassSetting
-from arguments.network_setting import NetworkSetting as NetworkSetting
+# from arguments.network_setting import NetworkSetting as NetworkSetting
+from arguments.network_setting_new import NetworkSettingNew as NetworkSetting
 from arguments.feature_setting import FeatureSetting as FeatureSetting
 
 class Setting(object):
@@ -28,7 +29,8 @@ class Setting(object):
     get_feature_setting()
         Return feature_setting
     """
-    def __init__(self, data_directories, csv_file, working_directory):
+    # @MPR
+    def __init__(self, data_directories, csv_file, working_directory, qupath_project_file = None):
         """
         Parameters
         ----------
@@ -39,7 +41,8 @@ class Setting(object):
         working_directory : string
             Working folder where files should be stored
         """
-        self.data_setting = DataSetting(data_directories, csv_file, working_directory)
+        # @MPR
+        self.data_setting = DataSetting(data_directories, csv_file, working_directory, qupath_project_file)
         self.class_setting = ClassSetting()
         self.network_setting = NetworkSetting(working_directory)
         self.feature_setting = FeatureSetting()
