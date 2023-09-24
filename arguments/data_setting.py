@@ -351,7 +351,7 @@ class DataSetting(object):
         # Choose which WSIs to use - detailed explanation in class
         # @MPR
         self.image_properties = [# ImageProperty('HE', 'Hamamatsu', 40, 'FFPE', 40),
-            ImageProperty('HE', 'Hamamatsu', 40, 'FFPE', 20)
+            ImageProperty('HE', 'Hamamatsu', 40, 'FFPE', 10)
         ]
 
         # Set True if just want to use WSIs where EPIC comes from        
@@ -387,12 +387,12 @@ class DataSetting(object):
         self.min_tissue_percentage = 0.75
 
         # Split to use as percent 0..1 (Train, Validation, Test)
-        self.split = (0.7, 0.1, 0.2)
+        self.split = (0.7, 0.15, 0.15)
 
         # Folds to run --> Not necessary if want to run Monte-Carlo
         self.folds = [0, 1, 2, 3, 4]
         # Set True if want to run Monte Carlo Folds instead of k-Fold
-        self.monte_carlo = True
+        self.monte_carlo = False
         # Folder to memorize Monte Carlo splits
         self.monte_carlo_folder = working_directory+'splits/b1b2/D/'
         if self.monte_carlo:
