@@ -1,6 +1,6 @@
-# @MPR
-
 # utils.py
+
+# @MPR
 
 import numpy as np
 import torch
@@ -46,6 +46,37 @@ def dice_coef_per_label(y_true, y_pred, numLabels):
         y_pred_norm = np.where(y_pred == i, 1, 0).astype(np.uint8)
         label_dice_dict[i] = dice_coef(y_true_norm, y_pred_norm)
     return label_dice_dict
+
+def get_precision_recall(pred_index, annotations, n_classes):
+     """
+    Compute the average precision and recall for a multi-class classification.
+    
+    Parameters:
+    - pred_index (array-like): Model predictions for each sample.
+    - annotations (array-like): True class labels for each sample.
+    - n_classes (int): Total number of classes.
+    
+    Returns:
+    - mean_precision (float): Average precision over all classes (except class 0).
+    - mean_recall (float): Average recall over all classes (except class 0).
+    
+    Note:
+    - This function assumes that class 0 is a background or ignore class and does not
+      compute precision or recall for it.
+    """
+    precision = 0
+    recall = 0
+    for i in range(1, n_classes):
+        pred_index_class_bin = (pred_index == i).astype(int) 
+        annotations_class_bin = (annotations == i).astype(int)
+        tp = ((pred_index_class_bin == 1) * pred_index_class_bin == annotations_class_bin).sum()
+        fp = ((pred_index_class_bin == 1) * pred_index_class_bin != annotations_class_bin).sum()
+        fn = ((pred_index_class_bin == 0) * pred_index_class_bin != annotations_class_bin).sum()
+        precision += tp / (tp + fp)
+        recall += tp / (tp + fn)
+    mean_precision = precision / (n_classes - 1)
+    mean_recall = recall / (n_classes - 1)
+    return mean_precision, mean_recall
 
 class CompositeLoss(torch.nn.Module):
     def __init__(self):
