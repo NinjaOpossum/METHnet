@@ -103,8 +103,8 @@ class Patient(object):
                 for wsi_identifier in wsi_identifiers:
                     # Create WSI object
                     wsi = WholeSlideImage(self.setting, wsi_identifier, image_property, data_folder)
-                    # @MPR
                     # Removes the non-annotated wsis if the flag has been set
+                    # @MPR
                     if self.setting.get_data_setting().get_exclude_non_annotated_wsis():
                         qupath_project = wsi.get_qupath_project()
                         assert qupath_project != None, "Please provide a QuPath project or disable the exclude_non_annotated_wsis flag from the data_setting.py!"
@@ -118,6 +118,8 @@ class Patient(object):
                                     try:
                                         annotation = qupath_project.get_tile_annot_mask(idx, (0, 0), (1, 1), 0)
                                     except:
+                                        # @MPR
+                                        print(f"The file {image.image_name} has an annotation with None class")
                                         annotation = None
                                     if annotation is not None:
                                         is_annotated = True
