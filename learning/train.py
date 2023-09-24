@@ -14,8 +14,8 @@ import cv2
 import matplotlib.pyplot as plt
 import PIL
 # from utils import dice_coef_multilabel
-# from imgDataset import GBMIMGDataset
-from models.unet import UNet  # code borrowed from https://github.com/jvanvugt/pytorch-unet
+from imgDataset import GBMIMGDataset
+from unet import UNet  # code borrowed from https://github.com/jvanvugt/pytorch-unet
 from torch.utils.data.sampler import RandomSampler
 from torch.utils.data import DataLoader, Dataset
 from torch import nn
@@ -23,7 +23,7 @@ import torch
 import pickle
 import torch.backends.cudnn as cudnn
 
-# from tensorboardX import SummaryWriter
+from tensorboardX import SummaryWriter
 
 # params
 dataname = "GBM"
@@ -108,7 +108,7 @@ transforms = Compose([
 
 # Dataset and Dataloader
 # create random list and split data
-imgPath = ""
+imgPath = "/workspaces/GBM_segmentation/GBM_segmentation/imagedata/mitose"
 file_names = [
     filename for filename in os.listdir(imgPath)
     if os.path.isfile(os.path.join(imgPath, filename))
