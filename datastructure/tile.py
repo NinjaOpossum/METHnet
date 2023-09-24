@@ -160,20 +160,17 @@ class Tile(object):
             if image.image_name == file_name:
                 image_id = image_id_current
                 try:
-                    annotation = qupath_project.get_tile_annot_mask(img_id = image_id, 
+                    annotation, reject = qupath_project.get_tile_annot_mask_train(img_id = image_id,
                         location = self.position, 
                         size = self.size, 
-                        downsample_level  = self.level,
-                        # @MPR
-                        multichannel = True,
-                        class_filter = ["Tumor"])
+                        downsample_level  = self.level)
                 except:
                     print(file_name + " doesn't have an annotation in the QuPath project!")
                     return None
                 break
         if annotation is None:
             print(file_name + " doesn't exists in the QuPath project")
-        return annotation
+        return annotation, reject
 
     def get_position(self):
         """ Getter position attribute
