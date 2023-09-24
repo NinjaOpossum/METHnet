@@ -22,9 +22,9 @@ class NetworkSettingNew(object):
 
         # Training Parameters
         self.runs = 1
-        self.epochs = 21
-        self.patches_per_epoch = 10000
-        self.validation_patch_limit = 1000
+        self.epochs = 5
+        self.patches_per_epoch = 30
+        self.validation_patch_limit = 30
         self.batch_size = 6
 
         # Logging Options
